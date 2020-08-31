@@ -21,7 +21,7 @@ We're going to do some manipulations of the raw and clean data out of the `Palme
 - Running functions on multiple columns at once
   - `across()`
   - `where()`
-- String manipulations
+
 
 
 ```{r setup, warning=FALSE, message=FALSE}
@@ -34,8 +34,10 @@ Prior to dplyr v1.0.0 there were suffix versions of `mutate` and `summarise` suc
 
 Dplyr v1.0.0 superseded the suffix versions with  column-wise function called `across()`.
 
-Functions can be supplied in several ways. It can be the name of the function, as a list with mulitple functions, or you can use the `purrr` style anonymous functions (lambda functions) with ~.
+Functions can be supplied in several ways. It can be the name of the function, as a list with multiple functions, or you can use the `purrr` style anonymous functions (lambda functions) with `~`.
 
+
+`across()` takes three main arguments, `.cols` is the columns, `.fns` is the function/list of functions, and `.names` is a way for naming the resultant column(s).
 
 ## Multi Summarise
 
@@ -43,21 +45,53 @@ We could use `across()` to summarise all of the columns that were measured in mi
 
 Summing
 ```{r}
-penguins %>% drop_na() %>% summarise(across(ends_with("_mm"), sum))
+penguins %>% drop_na() %>% 
+  summarise(across(.cols = ends_with("_mm"), .fns = sum))
 ```
 N.B. `drop_na()` was used only to simplify this particular example so there were no NAs in the data
 
 ### Anonymous functions
 Calculating the mean (using the purrr style anonymous function)
 ```{r}
-penguins %>% summarise(across(ends_with("_mm"), ~mean(.x, na.rm = TRUE)))
+penguins %>% 
+  summarise(across(ends_with("_mm"), ~mean(.x, na.rm = TRUE)))
 ```
 Providing multiple functions
 ```{r}
-penguins %>% group_by(species)%>% summarise(across(ends_with("_mm"), list(mean = ~mean(.x, na.rm = TRUE), 
+penguins %>% group_by(species) %>% 
+  summarise(
+    across(ends_with("_mm"), list(mean = ~mean(.x, na.rm = TRUE), 
                                                      sd = ~sd(.x, na.rm = TRUE))
                               ))
 ```
+
+### Naming new columns
+
+By default the name of the column is returned with the suffix of the function name attached (for an anonymous function it is the index of the function)
+
+The suffix can be changed either through providing a name to the function in the `list`, or by using `.name`
+```{r}
+penguins %>% group_by(species) %>% 
+  summarise(
+    across(ends_with("_mm"), 
+           list(mean =  ~mean(.x, na.rm = TRUE),
+                ~median(.x, na.rm=TRUE))
+                              ))
+```
+
+`.name` can use a `glue` type formula, where `{.col}` and `{.fn}` can be used as variables for constructing a name  
+
+```{r}
+penguins %>% 
+  group_by(species) %>% 
+  summarise(
+    across(.cols = ends_with("_mm"), 
+           .fns = list( mean = ~mean(.x, na.rm = TRUE), 
+                        sd = ~sd(.x, na.rm = TRUE)), 
+           .names = "{.fn}.{.col}")
+    )
+```
+
 
 
 ## Multi mutation
@@ -69,25 +103,33 @@ For instance, say we want to double all of our columns that are measured in mm. 
 
 
 ```{r}
-penguins %>% head() %>% mutate(across(ends_with("mm"), .fns = list(doubled = ~ .x * 2)))
+penguins %>% head() %>% 
+  mutate(across(ends_with("mm"), .fns = list(doubled = ~ .x * 2)))
 ```
 we can apply multiple functions to the same selected columns
 ```{r}
-penguins %>% head() %>% mutate(across(ends_with("mm"), .fns = list(doubled = ~ .x * 2, tripled = ~ .x * 3 )))
+penguins %>% head() %>% 
+  mutate(
+    across(ends_with("mm"), .fns = list(doubled = ~ .x * 2, tripled = ~ .x * 3 ))
+  )
 ```
 
 Other useful column selectors include  `contains()`, `starts_with()`, or `everything()`. See https://tidyselect.r-lib.org/reference/language.html for a more.
 
 e.g. convert entire data set to be characters
 ```{r}
-penguins %>% head() %>% mutate(across(everything(), as.character)) %>% str()
+penguins %>% head() %>% 
+  mutate(across(everything(), as.character)) %>% 
+  str()
 ```
 
 
 We can do manipulations on a column based on a condition, such as is it of a particular data type, e.g. convert factors to characters. For this we use `where()` for the condition to `across()`
 ```{r}
 penguins %>% str()
-penguins %>% head() %>% mutate(across(where(is.factor), as.character)) %>% str()
+penguins %>% head() %>% 
+  mutate(across(where(is.factor), as.character)) %>% 
+  str()
 ```
 
 
