@@ -1,0 +1,95 @@
+---
+title: "Manipulating data"
+author: "Murray Cadzow"
+date: "`r lubridate::today()`"
+output:
+    html_document: 
+      theme: cerulean
+      highlight: haddock
+      toc: yes
+      toc_float: yes
+      number_sections: yes
+      code_folding: show
+      df_print: kable
+#bibliography: references.bib
+---
+
+# Manipulating Data with the Tidyverse
+
+We're going to do some manipulations of the raw and clean data out of the `Palmer Penguins` data. As part of this we're going to touch on:
+
+- Running functions on multiple columns at once
+  - `across()`
+  - `where()`
+- String manipulations
+
+
+```{r setup, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(here)
+library(palmerpenguins)
+```
+
+Prior to dplyr v1.0.0 there were suffix versions of `mutate` and `summarise` such as *_at*, and *_if* which would enable you to apply a function to multiple columns at once based on columns selectors or conditions.
+
+Dplyr v1.0.0 superseded the suffix versions with  column-wise function called `across()`.
+
+Functions can be supplied in several ways. It can be the name of the function, as a list with mulitple functions, or you can use the `purrr` style anonymous functions (lambda functions) with ~.
+
+
+## Multi Summarise
+
+We could use `across()` to summarise all of the columns that were measured in millimetres.
+
+Summing
+```{r}
+penguins %>% drop_na() %>% summarise(across(ends_with("_mm"), sum))
+```
+N.B. `drop_na()` was used only to simplify this particular example so there were no NAs in the data
+
+### Anonymous functions
+Calculating the mean (using the purrr style anonymous function)
+```{r}
+penguins %>% summarise(across(ends_with("_mm"), ~mean(.x, na.rm = TRUE)))
+```
+Providing multiple functions
+```{r}
+penguins %>% group_by(species)%>% summarise(across(ends_with("_mm"), list(mean = ~mean(.x, na.rm = TRUE), 
+                                                     sd = ~sd(.x, na.rm = TRUE))
+                              ))
+```
+
+
+## Multi mutation
+
+
+
+For instance, say we want to double all of our columns that are measured in mm. We use across to specify the columns and the functions to apply to these columns.
+
+
+
+```{r}
+penguins %>% head() %>% mutate(across(ends_with("mm"), .fns = list(doubled = ~ .x * 2)))
+```
+we can apply multiple functions to the same selected columns
+```{r}
+penguins %>% head() %>% mutate(across(ends_with("mm"), .fns = list(doubled = ~ .x * 2, tripled = ~ .x * 3 )))
+```
+
+Other useful column selectors include  `contains()`, `starts_with()`, or `everything()`. See https://tidyselect.r-lib.org/reference/language.html for a more.
+
+e.g. convert entire data set to be characters
+```{r}
+penguins %>% head() %>% mutate(across(everything(), as.character)) %>% str()
+```
+
+
+We can do manipulations on a column based on a condition, such as is it of a particular data type, e.g. convert factors to characters. For this we use `where()` for the condition to `across()`
+```{r}
+penguins %>% str()
+penguins %>% head() %>% mutate(across(where(is.factor), as.character)) %>% str()
+```
+
+
+
+
